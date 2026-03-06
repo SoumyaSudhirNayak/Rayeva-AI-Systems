@@ -172,3 +172,33 @@ API calls are automatically proxied to the backend via `vite.config.ts`.
 | AI | Hugging Face Router (Inference Providers) |
 | Charts | Recharts |
 | Icons | Lucide React |
+
+---
+
+## AI Prompt Design Explanation
+
+This project uses a strict JSON contract so the UI and database always receive structured, predictable data.
+
+### Two-Prompt Structure
+- **System prompt** defines the role (e.g., product taxonomy expert / B2B procurement specialist), output schema, and hard rules (JSON only, no extra text).
+- **User prompt** contains only the dynamic inputs (product name/description or budget/purpose/quantity) to keep prompts stable and reduce drift.
+
+### Output Contracts (Schema-First)
+Each module has a fixed JSON shape:
+- **Auto Category**
+  - `{ "primary_category": "", "sub_category": "", "seo_tags": [], "sustainability_filters": [] }`
+- **B2B Proposal**
+  - `{ "product_mix": [], "budget_allocation": {}, "cost_breakdown": {}, "impact_summary": {} }`
+
+Responses are validated with **Pydantic** before anything is saved or returned to the frontend. If the JSON is malformed or does not match the schema, the request is retried.
+
+### JSON-Only Enforcement + Retries
+- The AI is instructed to return only a single JSON object (no markdown, no explanations).
+- The backend parses and validates the JSON.
+- Up to **3 retries** run on parse or validation failures to improve reliability.
+
+### Business Rule Validation (Backend)
+- For proposals, the backend checks key constraints (e.g., totals should not exceed the budget) and enforces consistency between line items and the cost breakdown.
+
+### Logging for Debugging and Audit
+- Every AI call logs prompt, raw model response, and parsed JSON into `ai_logs` for traceability and debugging.
